@@ -1,0 +1,439 @@
+/dts-v1/;
+
+#include "rk3399-firefly-port.dtsi"
+#include <dt-bindings/sensor-dev.h>
+
+/* copy */
+#include <dt-bindings/display/media-bus-format.h>
+
+/ {
+	model = "AIO-3399-JD4 Board (Linux Opensource)";
+	compatible = "rockchip,rk3399-firefly", "rockchip,rk3399";
+
+	test-power {
+		status = "okay";
+	};
+	
+	rt5640-sound {
+		simple-audio-card,cpu {
+		        sound-dai = <&i2s1>;
+		};
+		simple-audio-card,codec {
+		        sound-dai = <&rt5640>;
+		};
+	};
+
+	fan_ctl: fan-ctl-regulator {
+		compatible = "regulator-fixed";
+        	enable-active-high;
+        	regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio3 10 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		regulator-name = "fan_ctl";
+        	pinctrl-0 = <&fan_drv>;
+	};
+
+
+		 /* copy from aio 0330 */
+    backlight: backlight {
+        status = "okay";
+        pwms = <&pwm1 0 25000 0>;
+        default-brightness-level = <50>;
+    };
+
+    /*  POWER CONTROL START */
+    vcc_lcd: vcc-lcd {
+        compatible = "regulator-fixed";
+        enable-active-high;
+        regulator-boot-on;
+        gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&lcd_en>;
+        regulator-name = "vcc_lcd";
+        vin-supply = <&vcc_3v0>;
+    };
+
+    vcc_mipi: vcc_mipi {
+        status = "okay";
+        };
+
+    dvdd_1v2: dvdd-1v2 {
+        status = "okay";
+        };
+
+/* POWER CONTROL */
+
+
+};
+
+&gmac {
+	tx_delay = <0x2F>;
+	rx_delay = <0x1E>;
+};
+
+&vcc_sd {
+	gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+};
+
+&hdmi_dp_sound {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "disabled";
+	i2c-scl-rising-time-ns = <300>;
+	i2c-scl-falling-time-ns = <15>;
+
+	sensor@4c {
+		status = "disabled";
+		compatible = "gs_mc3230";
+		reg = <0x4c>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <1>;
+	};
+};
+
+&rt5640 {
+    hp-det-adc-value = <900>;
+    aux-det-adc-value = <900>;
+    hp-con-gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
+    io-channels = <&saradc 3>,<&saradc 2>;
+    io-channel-names = "hp-det","aux-det";
+};
+
+&rt5640_hpcon{
+    rockchip,pins = <3 16 RK_FUNC_GPIO &pcfg_pull_none>;
+};
+
+&vcca1v8_codec {
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+};
+&uart4 {
+    status = "disabled";
+};
+
+&spi1 {
+	dev-port = <0>;
+    	status = "okay";
+};
+
+&spi_wk2xxx {
+    status = "okay";
+	reset-gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+	irq-gpio = <&gpio2 8 IRQ_TYPE_EDGE_FALLING>;
+	cs-gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+};
+
+&vcc3v3_3g {
+	gpio = <&gpio2 28 GPIO_ACTIVE_HIGH>;
+};
+
+&vcc3v3_pcie {
+	/delete-property/ gpio;
+};
+
+&uart4 {
+    status = "disabled";
+};
+
+&dp_in_vopb {
+	status = "disabled";
+};
+
+&hdmi_in_vopl {
+	status = "disabled";
+};
+
+&wdt {
+	status = "disabled";
+};
+
+&io_domains {
+	bt656-supply = <&vcc_3v0>;
+};
+
+&vcc2v8_dvp {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&vcca1v8_codec {
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&host_hub_vcc>;
+
+	host-hub-vcc {
+		host_hub_vcc: host-hub-vcc {
+			rockchip,pins =
+				<2 4 RK_FUNC_GPIO &pcfg_output_high>,
+				<4 29 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+	};
+
+	pcie {
+		pcie_3g_drv: pcie-3g-drv {
+			rockchip,pins =
+				<2 6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	vcc_sd {
+		vcc_sd_h: vcc-sd-h {
+			rockchip,pins =
+				<1 22 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	fan-ctl {
+        	fan_drv: fan-drv {
+             		rockchip,pins = <3 10 RK_FUNC_GPIO &pcfg_pull_none>;
+        };
+    };
+
+
+
+	/* copy from aio 0330 */
+    lcd {
+        lcd_en: lcd-en  {
+            rockchip,pins = <1 1 RK_FUNC_GPIO &pcfg_pull_none>;
+        };
+    };
+
+
+
+};
+
+&fusb0 {
+    status = "disabled";
+};
+
+&cdn_dp {
+    status = "disabled";
+};
+
+&tcphy0 {
+    /delete-property/ extcon;
+    status = "okay";
+};
+
+&u2phy0 {
+    status = "okay";
+    /delete-property/ extcon;
+
+    u2phy0_otg: otg-port {
+        rockchip,vbus-always-on;
+        vbus-5v-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+        status = "okay";
+    };
+};
+
+&usbdrd3_0 {
+    status = "okay";
+    /delete-property/ extcon;
+};
+
+&usbdrd_dwc3_0 {
+    dr_mode = "host";
+};
+
+&route_hdmi {
+	status = "okay";
+};
+
+&rk808 {
+     /delete-property/ pmic,stby-gpio;
+     /delete-property/ pmic,hold-gpio;
+};
+
+&vcc_mipi {
+	status = "okay";
+};
+
+&dvdd_1v2 {
+	status = "okay";
+};
+
+/* error
+&ov13850 {
+	status = "okay";
+};
+
+&ov13850_1 {
+	status = "okay";
+};
+*/
+
+&rkisp1_0 {
+	status = "okay";
+};
+
+&mipi_dphy_rx0 {
+	status = "okay";
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
+&rkisp1_1 {
+	status = "okay";
+};
+
+&mipi_dphy_tx1rx1 {
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
+
+
+/* copy from old aio 0330 dts */
+
+
+
+
+/* mipi dsi start*/
+&dsi {
+    status = "okay";
+    dsi_panel: panel {
+        compatible ="simple-panel-dsi";
+        reg = <0>;
+        backlight = <&backlight>;
+        power-supply = <&vcc_lcd>;
+        dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
+        dsi,format = <MIPI_DSI_FMT_RGB888>;
+        bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+        dsi,lanes = <4>;
+        reset-delay-ms = <20>;
+        init-delay-ms = <20>;
+        enable-delay-ms = <120>;
+        prepare-delay-ms = <120>;
+        status = "okay";
+
+        panel-init-sequence = [
+            05 20 01 29
+            05 96 01 11
+        ];
+
+        panel-exit-sequence = [
+            05 05 01 28
+            05 78 01 10
+        ];
+
+        disp_timings: display-timings {
+            native-mode = <&timing0>;
+
+            timing0: timing0 {
+                clock-frequency = <74000000>;
+                hactive = <1280>;
+                vactive = <800>;
+                hsync-len = <20>;
+                hback-porch = <42>;
+                hfront-porch = <138>;
+                vsync-len = <2>;
+                vback-porch = <4>;
+                vfront-porch = <2>;
+                hsync-active = <1>;
+                vsync-active = <1>;
+                de-active = <1>;
+                pixelclk-active = <0>;
+            };
+        };
+    };
+};
+/* mipi dsi end*/
+
+/* touch start */
+&i2c4 {
+    status = "okay";
+    i2c-scl-rising-time-ns = <475>;
+    i2c-scl-falling-time-ns = <26>;
+
+    gt9271: gt9271@5d {
+        status = "okay";
+        compatible = "goodix,gt9xx";
+        reg = <0x5d>;
+        max-x = <1280>;
+        max-y = <800>;
+        tp-size = <9271>;
+        touch-gpio = <&gpio4 28 IRQ_TYPE_LEVEL_LOW>;
+        reset-gpio = <&gpio1 23 GPIO_ACTIVE_HIGH>;
+    };
+};
+
+/* touch end */
+
+/* mipi csi start*/
+&i2c1 {
+    status = "okay";
+    i2c-scl-rising-time-ns = <300>;
+    i2c-scl-falling-time-ns = <15>;
+    clock-frequency = <100000>;
+
+    ov5647: ov5647@46 {
+        compatible = "ovti,ov5647";
+        status = "okay";
+        reg = <0x46>;
+        clocks = <&cru SCLK_CIF_OUT>;
+        clock-names = "xvclk";
+
+       // conflict with csi-ctl-gpios 
+        reset-gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+        pwdn-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
+    //pinctrl-names = "rockchip,camera_default","rockchip,camera_sleep";
+        //pinctrl-0 = <&cif_clkout>;
+        //pinctrl-0 = <&cam0_default_pins>;
+        //pinctrl-1 = <&cam0_sleep_pins>;
+
+        avdd-supply = <&vcc_mipi>;  // VCC28_MIPI 
+        dovdd-supply = <&vcc_mipi>; // VCC18_MIPI 
+        dvdd-supply = <&dvdd_1v2>;  // DVDD_1V2 
+
+        port {
+           ucam_out0: endpoint {
+               remote-endpoint = <&mipi_in_ucam0>;
+               data-lanes = <1 2>;
+           };
+       };
+    };
+
+
+   ov5647_1: ov5647@36 {
+       compatible = "ovti,ov5647";
+       status = "okay";
+       reg = <0x36>;
+        clocks = <&cru SCLK_CIF_OUT>;
+        clock-names = "xvclk";
+
+        // conflict with csi-ctl-gpios 
+        reset-gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+        pwdn-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+    //pinctrl-names = "rockchip,camera_default", "rockchip,camera_sleep";
+        //pinctrl-0 = <&cif_clkout>;
+        //pinctrl-0 = <&cam0_default_pins>;
+        //pinctrl-1 = <&cam0_sleep_pins>;
+
+        avdd-supply = <&vcc_mipi>; // VCC28_MIPI 
+        dovdd-supply = <&vcc_mipi>; // VCC18_MIPI 
+        dvdd-supply = <&dvdd_1v2>; // DVDD_1V2 
+
+        port {
+            ucam_out1: endpoint {
+                remote-endpoint = <&mipi_in_ucam1>;
+                data-lanes = <1 2>;
+            };
+        };
+    };
+
+};
+/* mipi csi end*/
