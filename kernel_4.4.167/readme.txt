@@ -1,3 +1,5 @@
+rk3399-jd4 board test
+
 kernel 4.4.167 from eschoi linux-sdk 
 
 configs/ - kernel configuration files
