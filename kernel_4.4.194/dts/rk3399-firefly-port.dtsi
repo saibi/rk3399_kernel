@@ -243,6 +243,7 @@
 		hp-det-adc-value = <500>;
 	};
 
+/*********** dup label : ucam_out0, ucam_out1
 	ov13850: ov13850@36 {
 		compatible = "ovti,ov13850";
 		status = "disabled";
@@ -305,7 +306,11 @@
 			};
 		};
 	};
+***********/
+
+
 };
+
 
 &uart0 {
 	pinctrl-names = "default";

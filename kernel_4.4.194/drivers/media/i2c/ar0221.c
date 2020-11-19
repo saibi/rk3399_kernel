@@ -19,6 +19,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/rk-camera-module.h>
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -173,7 +174,12 @@ struct ar0221 {
 	struct v4l2_ctrl	     *test_pattern;
 	struct mutex		     mutex;
 	bool			streaming;
+	bool				power_on;
 	const struct ar0221_mode *cur_mode;
+	u32			module_index;
+	const char		*module_facing;
+	const char		*module_name;
+	const char		*len_name;
 };
 
 static struct ar0221 *ar0221_master;
@@ -720,6 +726,71 @@ static const struct ar0221_mode supported_modes[] = {
 	},
 };
 */
+
+
+static void ar0221_get_module_inf(struct ar0221 *ar0221,
+				  struct rkmodule_inf *inf)
+{
+	struct device *dev = &ar0221->client->dev;
+
+	memset(inf, 0, sizeof(*inf));
+	strlcpy(inf->base.sensor, "ar0221", sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, ar0221->module_name,
+		sizeof(inf->base.module));
+	strlcpy(inf->base.lens, ar0221->len_name, sizeof(inf->base.lens));
+
+
+	dev_info(dev, "DBG get_module_inf %d %s %s %s", ar0221->module_index, ar0221->module_name, ar0221->module_facing, ar0221->len_name);
+}
+
+static long ar0221_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct ar0221 *ar0221 = to_ar0221(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		ar0221_get_module_inf(ar0221, (struct rkmodule_inf *)arg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long ar0221_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkmodule_inf *inf;
+	long ret;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = ar0221_ioctl(sd, cmd, inf);
+		if (!ret)
+			ret = copy_to_user(up, inf, sizeof(*inf));
+		kfree(inf);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif 
+
+
 static const s64 link_freq_menu_items[] = {
 	AR0221_LINK_FREQ_300MHZ
     //AR0221_LINK_FREQ_150MHZ
@@ -1408,6 +1479,13 @@ static const struct v4l2_subdev_internal_ops ar0221_internal_ops = {
 };
 #endif
 
+static const struct v4l2_subdev_core_ops ar0221_core_ops = {
+	.ioctl = ar0221_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = ar0221_compat_ioctl32,
+#endif
+};
+
 static const struct v4l2_subdev_video_ops ar0221_video_ops = {
 	.s_stream = ar0221_s_stream,
 	.g_frame_interval = ar0221_g_frame_interval,
@@ -1421,6 +1499,7 @@ static const struct v4l2_subdev_pad_ops ar0221_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops ar0221_subdev_ops = {
+	.core	= &ar0221_core_ops,
 	.video	= &ar0221_video_ops,
 	.pad	= &ar0221_pad_ops,
 };
@@ -1664,6 +1743,7 @@ static int ar0221_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
 	struct ar0221 *ar0221;
 	struct v4l2_subdev *sd;
 	int ret;
@@ -1671,6 +1751,22 @@ static int ar0221_probe(struct i2c_client *client,
 	ar0221 = devm_kzalloc(dev, sizeof(*ar0221), GFP_KERNEL);
 	if (!ar0221)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &ar0221->module_index);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &ar0221->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &ar0221->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &ar0221->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
+
+	dev_info(dev, "driver version 0.2 : [%s-%d-%s-%s]", ar0221->module_name, ar0221->module_index, ar0221->module_facing, ar0221->len_name);
+
 
 	ar0221->client = client;
 	ar0221->cur_mode = &supported_modes[0];
@@ -1763,7 +1859,8 @@ static int ar0221_probe(struct i2c_client *client,
 		goto err_power_off;
 #endif
 
-	ret = v4l2_async_register_subdev(sd);
+	ret = v4l2_async_register_subdev_sensor_common(sd);
+	//ret = v4l2_async_register_subdev(sd); // org 
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
